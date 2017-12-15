@@ -19,7 +19,7 @@ class Policy(nn.Module):
         self.saved_actions = []
         self.rewards = []
         self.final_value = 0
-        self.act = nn.ReLU()
+        self.act = nn.LeakyReLU()
 
     def forward(self, x):
         x = self.act(self.affine1(x))
@@ -40,7 +40,7 @@ class Value(nn.Module):
         self.value_head = nn.Linear(64, 1)
         self.value_head.weight.data.mul_(0.1)
         self.value_head.bias.data.mul_(0.0)
-        self.act = nn.ReLU()
+        self.act = nn.LeakyReLU()
 
     def forward(self, x):
         x = self.act(self.affine1(x))
@@ -57,7 +57,7 @@ class Adv(nn.Module):
         self.affine2 = nn.Linear(32, 32)
         self.adv_head = nn.Linear(32, 1)
 
-        self.act = nn.ReLU()
+        self.act = nn.LeakyReLU()
         self.drop = nn.Dropout(p=dropout)
 
     def forward(self, x):

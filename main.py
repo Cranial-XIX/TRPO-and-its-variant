@@ -6,6 +6,7 @@ import numpy as np
 import scipy.optimize
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 
 from models import *
@@ -33,8 +34,8 @@ parser.add_argument('--algo', default="trpo-kl", metavar='G',
 parser.add_argument('--tau', type=float, default=0.97, metavar='G',
                     help='gae (default: 0.97)')
 
-parser.add_argument('--dropout', type=float, default=0.2, metavar='G',
-                    help='advantage neural net dropout rate (default: 0.2)')
+parser.add_argument('--dropout', type=float, default=0.3, metavar='G',
+                    help='advantage neural net dropout rate (default: 0.3)')
 
 parser.add_argument('--l2-reg', type=float, default=1e-3, metavar='G',
                     help='l2 regularization regression (default: 1e-3)')
@@ -45,8 +46,8 @@ parser.add_argument('--max-kl', type=float, default=1e-2, metavar='G',
 parser.add_argument('--damping', type=float, default=1e-1, metavar='G',
                     help='damping (default: 1e-1)')
 
-parser.add_argument('--seed', type=int, default=194, metavar='N',
-                    help='random seed (default: 34)')
+parser.add_argument('--seed', type=int, default=1904, metavar='N',
+                    help='random seed (default: 1904)')
 
 parser.add_argument('--batch-size', type=int, default=15000, metavar='N',
                     help='batch size (deafult: 15000)')
@@ -77,9 +78,10 @@ a_params = itertools.ifilter(
     lambda x: x.requires_grad, advantage_net.parameters()
 )
 
+adv_l2 = 0.03
 # define the optimizer to use; currently use Adam
 opt_a = optim.Adam(
-    a_params, lr=1e-4, weight_decay=0.02
+    a_params, lr=1e-3, weight_decay=adv_l2
 )
 
 mse = nn.MSELoss()
@@ -101,7 +103,7 @@ def adv_estimate_linesearch(model,
     #print("fval before", fval[0])
     max_improve = -1000
     max_x = x
-    for (_n_backtracks, stepfrac) in enumerate(.5**np.arange(max_backtracks)):
+    for (_n_backtracks, stepfrac) in enumerate((0.7**np.arange(max_backtracks))):
         xnew = x + stepfrac * fullstep
         set_flat_params_to(model, xnew)
         newfval = f(True).data
@@ -111,6 +113,7 @@ def adv_estimate_linesearch(model,
             max_improve = actual_improve[0]
 
     if max_improve > -1000:
+        print "max_improve: ", max_improve
         return True, max_x
     else:
         return False, x
@@ -144,7 +147,7 @@ def update_params(batch):
         advantage_net.train()
         opt_a.zero_grad()
 
-        target_advs = Variable(advantages)
+        target_advs = Variable(advantages, requires_grad=False)
 
         our_advs = advantage_net(
             torch.cat(
@@ -152,9 +155,9 @@ def update_params(batch):
             )
         )
 
-        adv_loss = mse(our_advs, target_advs)
+        adv_loss = F.smooth_l1_loss(our_advs, target_advs)
         adv_loss_data = adv_loss.data[0]
-        print "advantage mse loss : ", adv_loss_data
+        print "advantage huber loss : ", adv_loss_data
         adv_loss.backward()
         opt_a.step()
         advantage_net.eval()
@@ -227,9 +230,9 @@ def update_params(batch):
 
         log_prob = normal_log_density(Variable(actions), action_means, action_log_stds, action_stds)
         delta = adv_var - estimated_advantages
-        mask = delta > 0.2
+        mask = delta > 0.05
 
-        loss = -torch.sum(torch.masked_select(log_prob, mask))
+        loss = -torch.sum(torch.masked_select(log_prob * adv_var, mask))
 
         grads = torch.autograd.grad(loss, policy_net.parameters())
         loss_grad = torch.cat([grad.view(-1) for grad in grads]).data
@@ -248,7 +251,7 @@ def update_params(batch):
 running_state = ZFilter((dim_observations,), clip=5)
 running_reward = ZFilter((1,), demean=False, clip=10)
 
-fname = args.algo + '_' + args.env_name + '.csv'
+fname = args.algo + '_' + args.env_name + '_' + str(adv_l2) + '.csv'
 template = 'Episode {}\tLast reward: {}\tAverage reward {:.2f}'
 
 with open(fname, 'w') as csvfile:
