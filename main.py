@@ -251,7 +251,7 @@ def update_params(batch):
 running_state = ZFilter((dim_observations,), clip=5)
 running_reward = ZFilter((1,), demean=False, clip=10)
 
-fname = args.algo + '_' + args.env_name + '_' + str(adv_l2) + '.csv'
+fname = args.algo + '_' + args.env_name + '_' + str(adv_l2) + '_seed=' + str(args.seed) + '.csv'
 template = 'Episode {}\tLast reward: {}\tAverage reward {:.2f}'
 
 with open(fname, 'w') as csvfile:
