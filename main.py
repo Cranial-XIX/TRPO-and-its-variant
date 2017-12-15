@@ -78,10 +78,10 @@ a_params = itertools.ifilter(
     lambda x: x.requires_grad, advantage_net.parameters()
 )
 
-adv_l2 = 0.03
+adv_l2 = 0.02
 # define the optimizer to use; currently use Adam
 opt_a = optim.Adam(
-    a_params, lr=1e-3, weight_decay=adv_l2
+    a_params, lr=1e-4, weight_decay=adv_l2
 )
 
 mse = nn.MSELoss()
@@ -103,7 +103,7 @@ def adv_estimate_linesearch(model,
     #print("fval before", fval[0])
     max_improve = -1000
     max_x = x
-    for (_n_backtracks, stepfrac) in enumerate((0.7**np.arange(max_backtracks))):
+    for (_n_backtracks, stepfrac) in enumerate((0.5**np.arange(max_backtracks))):
         xnew = x + stepfrac * fullstep
         set_flat_params_to(model, xnew)
         newfval = f(True).data
@@ -302,8 +302,8 @@ with open(fname, 'w') as csvfile:
         batch = memory.sample()
 
         update_params(batch)
-        if reward_batch > 290:
-            args.render = True
+        #if reward_batch > 290:
+        #    args.render = True
 
         if i_episode % args.log_interval == 0:
             print(template.format(i_episode, reward_sum, reward_batch))
