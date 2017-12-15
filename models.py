@@ -5,16 +5,16 @@ import torch.nn.functional as F
 
 
 class Policy(nn.Module):
-    def __init__(self, num_inputs, num_outputs):
+    def __init__(self, dim_inputs, dim_outputs):
         super(Policy, self).__init__()
-        self.affine1 = nn.Linear(num_inputs, 64)
+        self.affine1 = nn.Linear(dim_inputs, 64)
         self.affine2 = nn.Linear(64, 64)
 
-        self.action_mean = nn.Linear(64, num_outputs)
+        self.action_mean = nn.Linear(64, dim_outputs)
         self.action_mean.weight.data.mul_(0.1)
         self.action_mean.bias.data.mul_(0.0)
 
-        self.action_log_std = nn.Parameter(torch.zeros(1, num_outputs))
+        self.action_log_std = nn.Parameter(torch.zeros(1, dim_outputs))
 
         self.saved_actions = []
         self.rewards = []
@@ -33,9 +33,9 @@ class Policy(nn.Module):
 
 
 class Value(nn.Module):
-    def __init__(self, num_inputs):
+    def __init__(self, dim_inputs):
         super(Value, self).__init__()
-        self.affine1 = nn.Linear(num_inputs, 64)
+        self.affine1 = nn.Linear(dim_inputs, 64)
         self.affine2 = nn.Linear(64, 64)
         self.value_head = nn.Linear(64, 1)
         self.value_head.weight.data.mul_(0.1)
@@ -49,19 +49,20 @@ class Value(nn.Module):
         state_values = self.value_head(x)
         return state_values
 
+
 class Adv(nn.Module):
-    def __init__(self, num_inputs):
+    def __init__(self, dim_inputs, dropout):
         super(Adv, self).__init__()
-        self.affine1 = nn.Linear(num_inputs, 64)
-        self.affine2 = nn.Linear(64, 64)
-        self.value_head = nn.Linear(64, 1)
-        self.value_head.weight.data.mul_(0.1)
-        self.value_head.bias.data.mul_(0.0)
+        self.affine1 = nn.Linear(dim_inputs, 32)
+        self.affine2 = nn.Linear(32, 32)
+        self.adv_head = nn.Linear(32, 1)
+
         self.act = nn.ReLU()
+        self.drop = nn.Dropout(p=dropout)
 
     def forward(self, x):
-        x = self.act(self.affine1(x))
-        x = self.act(self.affine2(x))
-        advantage = self.value_head(x)
+        x = self.drop(self.act(self.affine1(x)))
+        x = self.drop(self.act(self.affine2(x)))
+        advantage = self.adv_head(x)
 
         return advantage

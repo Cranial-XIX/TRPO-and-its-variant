@@ -1,12 +1,10 @@
 import random
 from collections import namedtuple
 
-# Taken from
-# https://github.com/pytorch/tutorials/blob/master/Reinforcement%20(Q-)Learning%20with%20PyTorch.ipynb
-
-Transition = namedtuple('Transition', ('state', 'action', 'mask', 'next_state',
-                                       'reward'))
-
+Transition = namedtuple(
+    'Transition', 
+    ('state', 'action', 'mask', 'next_state', 'reward')
+)
 
 class Memory(object):
     def __init__(self):
